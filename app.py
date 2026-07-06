@@ -33,10 +33,10 @@ st.set_page_config(
 @st.cache_data(ttl=30)
 def load_sheet(sheet_name):
 
-    credentials = Credentials.from_service_account_file(
-        "credentials/credentials.json",
-        scopes=SCOPES
-    )
+    credentials = Credentials.from_service_account_info(
+    st.secrets["gcp_service_account"],
+    scopes=SCOPES
+)
 
     client = gspread.authorize(credentials)
 
