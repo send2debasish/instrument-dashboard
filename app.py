@@ -1,176 +1,364 @@
 import streamlit as st
-import pandas as pd
 import gspread
+import pandas as pd
+import base64
+import openpyxl
 from google.oauth2.service_account import Credentials
 
-# ==========================
-# CONFIGURATION
-# ==========================
-
-SHEET_ID = "12UjodtyOq1avZrCb974Z0-87z7TmKLru6TdmqTqJj10"
-
-INSTRUMENT_SHEET = "Sheet1"
-SUMMARY_SHEET = "Summary"
-
-USERNAME = "admin"
-PASSWORD = "jsw123"
-
-SCOPES = [
-    "https://www.googleapis.com/auth/spreadsheets",
-    "https://www.googleapis.com/auth/drive",
-]
-
+# -----------------------------streamlit run app.py
+# Page Config
+# -----------------------------
 st.set_page_config(
-    page_title="JSW JFE STEEL",
-    page_icon="🏭",
-    layout="wide"
+    page_title="C&I",
+    layout="wide",
+    initial_sidebar_state="collapsed"
 )
 
-# ==========================
-# LOAD DATA
-# ==========================
-
-@st.cache_data(ttl=30)
-def load_sheet(sheet_name):
-
-    credentials = Credentials.from_service_account_info(
-    st.secrets["gcp_service_account"],
-    scopes=SCOPES
-)
-
-    client = gspread.authorize(credentials)
-
-    spreadsheet = client.open_by_key(SHEET_ID)
-
-    worksheet = spreadsheet.worksheet(sheet_name)
-
-    data = worksheet.get_all_records()
-
-    return pd.DataFrame(data)
-
-# ==========================
-# LOGIN SESSION
-# ==========================
-
+# -----------------------------
+# Session State
+# -----------------------------
 if "logged_in" not in st.session_state:
     st.session_state.logged_in = False
 
+# -----------------------------
+# Page Session
+# -----------------------------
 if "page" not in st.session_state:
     st.session_state.page = "Home"
 
-# ==========================
-# LOGIN PAGE
-# ==========================
+# -----------------------------
+# Hide Streamlit Menu
+# -----------------------------
+st.markdown("""
+<style>
+#MainMenu {visibility:hidden;}
+footer {visibility:hidden;}
+header {visibility:hidden;}
+</style>
+""", unsafe_allow_html=True)
 
+# -----------------------------
+# Load Background Image
+# -----------------------------
+def get_base64(file):
+    with open(file, "rb") as f:
+        return base64.b64encode(f.read()).decode()
+
+bg = get_base64("background.png")
+
+# -----------------------------
+# CSS
+# -----------------------------
 if not st.session_state.logged_in:
 
-    st.markdown("<h1 style='text-align:center;'>🏭 JSW JFE STEEL</h1>", unsafe_allow_html=True)
-    st.markdown("<h3 style='text-align:center;'>Instrument Dashboard Login</h3>", unsafe_allow_html=True)
+    st.markdown(f"""
+    <style>
 
-    col1, col2, col3 = st.columns([1,2,1])
+    .stApp {{
+        background-image: url("data:image/png;base64,{bg}");
+        background-size: cover;
+        background-position: center;
+        background-repeat: no-repeat;
+        background-attachment: fixed;
+    }}
 
-    with col2:
+    .header-box{{
+        width:850px;
+        margin:-80px auto 20px auto;
+        text-align:center;
+    }}
 
-        user = st.text_input("User Name")
+    .header-title{{
+        font-size:42px;
+        font-weight:bold;
+        color:white;
+    }}
 
-        pwd = st.text_input("Password", type="password")
+    .header-subtitle{{
+        font-size:20px;
+        font-weight:bold;
+        color:#FFD700;
+    }}
 
-        if st.button("Login", use_container_width=True):
+    .login-title {{
+        text-align:center;
+        font-size:34px;
+        color:white;
+        font-weight:bold;
+    }}
 
-            if user == USERNAME and pwd == PASSWORD:
+    .stTextInput label {{
+        color:white !important;
+        font-size:16px !important;
+        font-weight:bold !important;
+    }}
 
+    .stTextInput input {{
+        height:45px !important;
+        font-size:20px !important;
+        
+    }}
+
+    .stButton>button {{
+        width:100%;
+        height:60px;
+        font-size:22px;
+    }}
+
+    </style>
+    """, unsafe_allow_html=True)
+
+else:
+
+    st.markdown("""
+    <style>
+
+    .stApp{
+        background:white !important;
+        background-image:none !important;
+    }
+
+    </style>
+    """, unsafe_allow_html=True)
+
+# -----------------------------
+# Load Data from Google Sheet
+# -----------------------------
+@st.cache_data(ttl=60)
+def load_data():
+
+    scopes = [
+        "https://www.googleapis.com/auth/spreadsheets",
+        "https://www.googleapis.com/auth/drive"
+    ]
+
+    credentials = Credentials.from_service_account_file(
+        "service_account.json",
+        scopes=scopes
+    )
+
+    client = gspread.authorize(credentials)
+
+    workbook = client.open("inst_list")
+    worksheet = workbook.worksheet("Sheet1")
+
+    data = worksheet.get_all_records()
+
+    df = pd.DataFrame(data)
+
+    return df
+# -----------------------------
+# Load Control Valve Data (Sheet2)
+# -----------------------------
+@st.cache_data(ttl=60)
+def load_valve_data():
+
+    scopes = [
+        "https://www.googleapis.com/auth/spreadsheets",
+        "https://www.googleapis.com/auth/drive"
+    ]
+
+    credentials = Credentials.from_service_account_file(
+        "service_account.json",
+        scopes=scopes
+    )
+
+    client = gspread.authorize(credentials)
+
+    workbook = client.open("inst_list")
+
+    # Load Sheet2
+    worksheet = workbook.worksheet("Sheet2")
+
+    data = worksheet.get_all_records()
+
+    df = pd.DataFrame(data)
+
+    return df
+
+
+# =====================================================
+# LOGIN PAGE
+# =====================================================
+if not st.session_state.logged_in:
+
+    st.markdown("""
+    <div class="header-box">
+        <div class="header-title">
+            CENTRAL AUTOMATION DEPARTMENT
+        </div>
+        <div class="header-subtitle">
+            JSW JFE STEEL
+        </div>
+    </div>
+    """, unsafe_allow_html=True)
+
+    left, center, right = st.columns([1.3,1,1.3])
+
+    with center:
+
+        st.markdown(
+            '<div class="login-title">USER LOGIN</div>',
+            unsafe_allow_html=True
+        )
+
+        username = st.text_input(
+            "USERNAME",
+            placeholder="Enter Username"
+        )
+
+        password = st.text_input(
+            "PASSWORD",
+            type="password",
+            placeholder="Enter Password"
+        )
+
+        if st.button("LOGIN"):
+
+            if username == "admin" and password == "jsw123":
                 st.session_state.logged_in = True
                 st.rerun()
 
             else:
-                st.error("Invalid Username or Password")
-
-# ==========================
-# MAIN PAGE
-# ==========================
+                st.error("❌ Invalid Username or Password")
 
 else:
 
-    st.sidebar.success("Logged In")
+    # ==========================
+    # HOME PAGE
+    # ==========================
+    if st.session_state.page == "Home":
 
-    if st.sidebar.button("Logout"):
-        st.session_state.logged_in = False
-        st.rerun()
+        st.markdown(
+            """
+            <h1 style='margin-top:-100px; margin-bottom:20px;'>
+                🏠 INDEX PAGE
+            </h1>
+            """,
+            unsafe_allow_html=True
+        )
 
-    st.title("🏭 JSW JFE STEEL")
-    st.subheader("Automation & Instrument Dashboard")
+        col1, col2 = st.columns(2)
 
-    st.markdown("---")
+        with col1:
+            if st.button("📋 INSTRUMENT LIST", use_container_width=True):
+                st.session_state.page = "Instrument"
+                st.rerun()
 
-    col1, col2 = st.columns(2)
+            if st.button("📊 INSTRUMENT SUMMERY", use_container_width=True):
+                st.session_state.page = "Summary"
+                st.rerun()
 
-    with col1:
+        with col2:
+            if st.button("⚙ CONTROL VALVE LIST", use_container_width=True):
+                st.session_state.page = "Valve"
+                st.rerun()
 
-        if st.button("📋 Instrument List", use_container_width=True):
-            st.session_state.page = "Instrument"
+            if st.button("📈 CONTROL VALVE SUMMERY", use_container_width=True):
+                st.session_state.page = "ValveSummary"
+                st.rerun()
 
-    with col2:
+    # ==========================
+    # INSTRUMENT LIST PAGE
+    # ==========================
+    elif st.session_state.page == "Instrument":
 
-        if st.button("📊 Summary Sheet", use_container_width=True):
-            st.session_state.page = "Summary"
+        st.markdown(
+            """
+            <h1 style='margin-top:-150px; margin-bottom:15px;'>
+                📋 INSTRUMENT LIST
+            </h1>
+            """,
+            unsafe_allow_html=True
+        )
 
-    st.markdown("---")
+        if st.button("⬅ Back to Home"):
+            st.session_state.page = "Home"
+            st.rerun()
 
-    # ======================
-    # Instrument List Page
-    # ======================
+        st.markdown("</div>", unsafe_allow_html=True)
 
-    if st.session_state.page == "Instrument":
+        df = load_data()
 
-        st.header("📋 Instrument List")
+        st.dataframe(
+            df,
+            use_container_width=True,
+            hide_index=True,
+            height=700
+        )
 
-        df = load_sheet(INSTRUMENT_SHEET)
-
-        st.success("Instrument Sheet Loaded Successfully")
-
-        st.dataframe(df, use_container_width=True)
-
-
-    # ======================
-    # Summary Page
-    # ======================
-
+    # ==========================
+    # INSTRUMENT SUMMARY PAGE
+    # ==========================
     elif st.session_state.page == "Summary":
 
-        st.header("📊 Instrument Summary")
+        st.markdown(
+            """
+            <h1 style='margin-top:-150px; margin-bottom:15px;'>
+                📋 INSTRUMENT SUMMERY
+            </h1>
+            """,
+            unsafe_allow_html=True
+        )
 
-        df = load_sheet(INSTRUMENT_SHEET)
+        if st.button("⬅ Back to Home"):
+            st.session_state.page = "Home"
+            st.rerun()
 
-        instrument_col = "INSTRUMENT TYPE"
-        area_col = "AREA"
-        qty_col = "INSTALLED QTY"
+        # Read Excel
+        df = load_data()
 
-        if (
-                instrument_col not in df.columns
-                or area_col not in df.columns
-                or qty_col not in df.columns
-        ):
+        # Ensure Installed Qty is numeric
+        df["INSTALLED QTY"] = pd.to_numeric(
+            df["INSTALLED QTY"],
+            errors="coerce"
+        ).fillna(0)
 
-            st.error("Required columns not found.")
+        # Summary
+        summary = pd.pivot_table(
+            df,
+            index="AREA",
+            columns="INSTRUMENT TYPE",
+            values="INSTALLED QTY",
+            aggfunc="sum",
+            fill_value=0
+        )
 
-        else:
 
-            df[qty_col] = pd.to_numeric(
-                df[qty_col],
-                errors="coerce"
-            ).fillna(0)
+        st.dataframe(
+            summary.reset_index(),
+            use_container_width=True,
+            hide_index=True,
+            height=700
+        )
 
-            summary = pd.pivot_table(
-                df,
-                index=area_col,
-                columns=instrument_col,
-                values=qty_col,
-                aggfunc="sum",
-                fill_value=0
-            )
+# ==========================
+# CONTROL VALVE LIST PAGE
+# ==========================
 
-            summary["TOTAL"] = summary.sum(axis=1)
+    elif st.session_state.page == "Valve":
 
-            summary = summary.reset_index()
+        st.markdown(
+            """
+            <h1 style='margin-top:-100px; margin-bottom:15px;'>
+                ⚙ CONTROL VALVE LIST
+            </h1>
+            """,
+            unsafe_allow_html=True
+        )
 
-            st.dataframe(summary, use_container_width=True)
+        if st.button("⬅ Back to Home"):
+            st.session_state.page = "Home"
+            st.rerun()
+
+        # Load Sheet2
+        valve_df = load_valve_data()
+
+        st.dataframe(
+            valve_df,
+            use_container_width=True,
+            hide_index=True,
+            height=700
+        )
+
+#=========================================================================================================
