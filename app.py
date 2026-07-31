@@ -1,3 +1,5 @@
+from email.utils import collapse_rfc2231_value
+
 import streamlit as st
 import gspread
 import pandas as pd
@@ -37,12 +39,14 @@ header {visibility:hidden;}
 </style>
 """, unsafe_allow_html=True)
 
+
 # -----------------------------
 # Load Background Image
 # -----------------------------
 def get_base64(file):
     with open(file, "rb") as f:
         return base64.b64encode(f.read()).decode()
+
 
 bg = get_base64("background.png")
 
@@ -62,9 +66,24 @@ if not st.session_state.logged_in:
         background-attachment: fixed;
     }}
 
+    /* Fixed Logo Bottom Right */
+.logo-bottom-right {{
+    position: fixed;
+    top: 140px;
+    bottom: 40px;
+    left: 750px;
+    right: 20px;
+    z-index: 999;
+}}
+
+.logo-bottom-right img {{
+    width: 250px;      /* Change size as required */
+    opacity: 0.95;     /* Optional */
+}}
+
     .header-box{{
-        width:850px;
-        margin:-80px auto 20px auto;
+        width:750px;
+        margin:-10px auto 20px auto;
         text-align:center;
     }}
 
@@ -89,20 +108,21 @@ if not st.session_state.logged_in:
 
     .stTextInput label {{
         color:white !important;
-        font-size:16px !important;
+        font-size:26px !important;
         font-weight:bold !important;
     }}
 
     .stTextInput input {{
-        height:45px !important;
+        height:40px !important;
         font-size:20px !important;
-        
+
+
     }}
 
     .stButton>button {{
-        width:100%;
+        width:610%;
         height:60px;
-        font-size:22px;
+        font-size:52px;
     }}
 
     </style>
@@ -121,12 +141,12 @@ else:
     </style>
     """, unsafe_allow_html=True)
 
+
 # -----------------------------
-# Load Data from Google Sheet
+# Load Data from Google Sheet1
 # -----------------------------
 @st.cache_data(ttl=60)
 def load_data():
-
     scopes = [
         "https://www.googleapis.com/auth/spreadsheets",
         "https://www.googleapis.com/auth/drive"
@@ -147,12 +167,13 @@ def load_data():
     df = pd.DataFrame(data)
 
     return df
+
+
 # -----------------------------
 # Load Control Valve Data (Sheet2)
 # -----------------------------
 @st.cache_data(ttl=60)
 def load_valve_data():
-
     scopes = [
         "https://www.googleapis.com/auth/spreadsheets",
         "https://www.googleapis.com/auth/drive"
@@ -177,6 +198,63 @@ def load_valve_data():
     return df
 
 
+# -----------------------------
+# Load PLC checklist Data (Sheet3)
+# -----------------------------
+@st.cache_data(ttl=60)
+def load_plc_data():
+    scopes = [
+        "https://www.googleapis.com/auth/spreadsheets",
+        "https://www.googleapis.com/auth/drive"
+    ]
+
+    credentials = Credentials.from_service_account_file(
+        "service_account.json",
+        scopes=scopes
+    )
+
+    client = gspread.authorize(credentials)
+
+    workbook = client.open("inst_list")
+
+    # Load Sheet2
+    worksheet = workbook.worksheet("Sheet3")
+
+    data = worksheet.get_all_records()
+
+    df = pd.DataFrame(data)
+
+    return df
+
+
+# ============================================
+# Load Shift Rota Data (Sheet4)
+# ============================================
+@st.cache_data(ttl=60)
+def load_shift_data():
+    scopes = [
+        "https://www.googleapis.com/auth/spreadsheets",
+        "https://www.googleapis.com/auth/drive"
+    ]
+
+    credentials = Credentials.from_service_account_file(
+        "service_account.json",
+        scopes=scopes
+    )
+
+    client = gspread.authorize(credentials)
+
+    workbook = client.open("inst_list")
+
+    worksheet = workbook.worksheet("Sheet4")
+
+    data = worksheet.get_all_records()
+
+    df = pd.DataFrame(data)
+
+    return df
+
+
 # =====================================================
 # LOGIN PAGE
 # =====================================================
@@ -187,13 +265,17 @@ if not st.session_state.logged_in:
         <div class="header-title">
             CENTRAL AUTOMATION DEPARTMENT
         </div>
-        <div class="header-subtitle">
-            JSW JFE STEEL
-        </div>
+
     </div>
     """, unsafe_allow_html=True)
 
-    left, center, right = st.columns([1.3,1,1.3])
+    st.markdown("""
+    <div class="logo-bottom-right">
+        <img src="data:image/png;base64,{}">
+    </div>
+    """.format(get_base64("jsw_logo.png")), unsafe_allow_html=True)
+
+    left, center, right = st.columns([1.3, 1, 1.3])
 
     with center:
 
@@ -231,14 +313,24 @@ else:
 
         st.markdown(
             """
-            <h1 style='margin-top:-100px; margin-bottom:20px;'>
+            <h1 style='margin-top:-120px; margin-bottom:20px;'>
                 🏠 INDEX PAGE
             </h1>
             """,
             unsafe_allow_html=True
         )
+        # =============================================
+        # Logout button below heading (left side)
+        # =============================================
+        left, right = st.columns([1, 8])
 
-        col1, col2 = st.columns(2)
+        with left:
+            if st.button("🚪 Logout", use_container_width=True):
+                st.session_state.logged_in = False
+                st.session_state.page = "Home"
+                st.rerun()
+
+        col1, col2, col3, col4 = st.columns(4)
 
         with col1:
             if st.button("📋 INSTRUMENT LIST", use_container_width=True):
@@ -249,6 +341,14 @@ else:
                 st.session_state.page = "Summary"
                 st.rerun()
 
+            if st.button("SHIFT ROTA", use_container_width=True):
+                st.session_state.page = "SHIFT ROTA"
+                st.rerun()
+
+            if st.button("SHIFT DATA", use_container_width=True):
+                st.session_state.page = "SHIFT DATA"
+                st.rerun()
+
         with col2:
             if st.button("⚙ CONTROL VALVE LIST", use_container_width=True):
                 st.session_state.page = "Valve"
@@ -257,6 +357,25 @@ else:
             if st.button("📈 CONTROL VALVE SUMMERY", use_container_width=True):
                 st.session_state.page = "ValveSummary"
                 st.rerun()
+
+        with col3:
+            if st.button("PLC AUDIT CHECKLIST", use_container_width=True):
+                st.session_state.page = "PLC CHECKLIST"
+                st.rerun()
+
+            if st.button("📈 PLC CHECKLIST SUMMER", use_container_width=True):
+                st.session_state.page = "PLC SUMMERY"
+                st.rerun()
+
+        with col4:
+            if st.button("THERMOGRAPHY", use_container_width=True):
+                st.session_state.page = "THERMOGRAPHY RECORD"
+                st.rerun()
+
+            if st.button("📈 ", use_container_width=True):
+                st.session_state.page = "THERMOGRAPHY SUMMERY"
+                st.rerun()
+
 
     # ==========================
     # INSTRUMENT LIST PAGE
@@ -324,7 +443,6 @@ else:
             fill_value=0
         )
 
-
         st.dataframe(
             summary.reset_index(),
             use_container_width=True,
@@ -332,15 +450,15 @@ else:
             height=700
         )
 
-# ==========================
-# CONTROL VALVE LIST PAGE
-# ==========================
+    # ==========================
+    # CONTROL VALVE LIST PAGE
+    # ==========================
 
     elif st.session_state.page == "Valve":
 
         st.markdown(
             """
-            <h1 style='margin-top:-100px; margin-bottom:15px;'>
+            <h1 style='margin-top:-150px; margin-bottom:40px;'>
                 ⚙ CONTROL VALVE LIST
             </h1>
             """,
@@ -352,13 +470,123 @@ else:
             st.rerun()
 
         # Load Sheet2
-        valve_df = load_valve_data()
+        df = load_valve_data()
 
         st.dataframe(
-            valve_df,
+            df,
             use_container_width=True,
             hide_index=True,
             height=700
         )
 
-#=========================================================================================================
+    # ==========================
+    # PLC AUDIT CHECK LIST PAGE
+    # ==========================
+
+    elif st.session_state.page == "PLC CHECKLIST":
+
+        st.markdown(
+            """
+            <h1 style='margin-top:-150px; margin-bottom:15px;'>
+                ⚙ PLC AUDIT CHECKLIST
+            </h1>
+            """,
+            unsafe_allow_html=True
+        )
+
+        if st.button("⬅ Back to Home"):
+            st.session_state.page = "Home"
+            st.rerun()
+
+        # Load Sheet3
+        df = load_plc_data()
+
+        st.dataframe(
+            df,
+            use_container_width=True,
+            hide_index=True,
+            height=700
+        )
+
+
+    # ==========================
+    # SHIFT ROTA PAGE
+    # ==========================
+
+    elif st.session_state.page == "SHIFT ROTA":
+
+        st.markdown(
+            """
+            <h1 style='margin-top:-150px; margin-bottom:15px;'>
+                ⚙ SHIFT ROTA LIST
+            </h1>
+            """,
+            unsafe_allow_html=True
+        )
+
+        if st.button("⬅ Back to Home"):
+            st.session_state.page = "Home"
+            st.rerun()
+
+        # Load Sheet4
+        df = load_shift_data()
+
+        st.dataframe(
+            df,
+            use_container_width=True,
+            hide_index=True,
+            height=700
+        )
+
+    # ==========================
+    # SHIFT DATA PAGE
+    # ==========================
+
+    elif st.session_state.page == "SHIFT DATA":
+
+        st.markdown("""
+    <h1 style='margin-top:-150px;'>
+        📅 SHIFT DATA
+    </h1>
+    """, unsafe_allow_html=True)
+
+    if st.button("⬅ Back to Home"):
+        st.session_state.page = "Home"
+        st.rerun()
+
+    # Load Shift Rota
+    df = load_shift_data()
+
+    # Date columns start after NAME, EMP ID, DAY
+    date_columns = list(df.columns[3:])
+
+    # Select Date
+    selected_date = st.selectbox(
+        "Select Date",
+        date_columns
+    )
+
+    if st.button("Show Details"):
+
+        @st.dialog(f"Shift Details : {selected_date}")
+        def shift_popup():
+
+            for shift in ["A", "B", "C", "G"]:
+
+                st.subheader(f"{shift} SHIFT")
+
+                shift_emp = df[df[selected_date] == shift]
+
+                if shift_emp.empty:
+                    st.warning("No Employee")
+
+                else:
+
+                    st.dataframe(
+                        shift_emp[["NAME", "EMP ID"]],
+                        hide_index=True,
+                        use_container_width=True
+                    )
+
+
+        shift_popup()
