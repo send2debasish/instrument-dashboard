@@ -179,7 +179,7 @@ def load_valve_data():
         "https://www.googleapis.com/auth/drive"
     ]
 
-    credentials = Credentials.from_service_account_file(
+    credentials = Credentials.from_service_account_info(
         "service_account.json",
         scopes=scopes
     )
@@ -208,7 +208,7 @@ def load_plc_data():
         "https://www.googleapis.com/auth/drive"
     ]
 
-    credentials = Credentials.from_service_account_file(
+    credentials = Credentials.from_service_account_info(
         "service_account.json",
         scopes=scopes
     )
@@ -237,7 +237,7 @@ def load_shift_data():
         "https://www.googleapis.com/auth/drive"
     ]
 
-    credentials = Credentials.from_service_account_file(
+    credentials = Credentials.from_service_account_info(
         "service_account.json",
         scopes=scopes
     )
